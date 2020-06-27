@@ -22,5 +22,8 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 estuary-*.tar
 
-
 /.env
+*.beam
+/config/*.secret.exs
+.elixir_ls/
+

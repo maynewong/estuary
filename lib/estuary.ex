@@ -2,30 +2,32 @@ defmodule Estuary do
   @moduledoc """
   Documentation for `Estuary`.
   """
+  require Logger
 
-  def main(url) do
-    url
-    |> fetch_rss
-    |> parse_content
+  def main() do
+    rss_map = Application.fetch_env!(:estuary, :rss_map)
+    for {k, v} <- rss_map do
+      Logger.info "Start request rss_url: #{v[:url]}"
+
+      v[:url]
+      |> HTTPoison.get!
+      |> Map.get(:body)
+      |> Feedraptor.parse
+      |> parse_feed(v[:css])
+
+    end
   end
 
-  def fetch_rss(url) do
-    HTTPoison.start
-    response = HTTPoison.get!(url)
-    Feedraptor.parse(response.body)
-  end
-
-  def parse_content(map_rss) do
+  def parse_feed(feed, css) do
     time_interval = Application.fetch_env!(:estuary, :time_interval)
     end_time = DateTime.add(DateTime.utc_now(), -time_interval)
-    IO.puts(end_time)
 
-    # parse rss while the updated > end time
-    Enum.reduce_while(map_rss.entries, 0, fn entry, acc ->
+    # parse feed while the updated > end time
+    Enum.reduce_while(feed.entries, 0, fn entry, acc ->
       {:ok, updated, 0} = DateTime.from_iso8601(to_string(entry.updated))
       if updated > end_time do
-        parse_link(entry.content, "span > a")
-        |> join_strings
+        parse_link_by_css(entry.content, css)
+        |> IO.iodata_to_binary
         |> send_message(entry.title)
         {:cont, acc}
       else
@@ -35,8 +37,9 @@ defmodule Estuary do
   end
 
   def send_message(message, title) do
+    Logger.info "Start send message to slackbot: #{title}"
     json = %{text: "#{title} \n" <> message} |> Poison.encode!
-    IO.puts(Application.fetch_env!(:estuary, :slack_webhooks))
+  
     HTTPoison.post(
       Application.fetch_env!(:estuary, :slack_webhooks),
       json,
@@ -44,18 +47,15 @@ defmodule Estuary do
     )
   end
 
-  def join_strings(list) do
-    list |> IO.iodata_to_binary
-  end
 
-  def parse_link(document, css_selector) do
+  def parse_link_by_css(document, css_selector) do
     import Meeseeks.CSS
 
     for story <- Meeseeks.all(document, css(css_selector)) do
-      element = Meeseeks.one(story, css("a"))
-      title = Meeseeks.text(element)
+      title = Meeseeks.one(story, css("a")) |> Meeseeks.text
       if title != nil do
-        url = Meeseeks.attr(element, "href") |> generate_url_shortener()
+        url = Meeseeks.attr(element, "href") |> generate_url_shortener
+
         "- #{title}: #{url}\n"
       else
         ""
@@ -64,8 +64,9 @@ defmodule Estuary do
   end
 
   def generate_url_shortener(url) do
-    response = HTTPoison.get!("http://tinyurl.com/api-create.php?url=#{url}")
-    response.body
+    "http://tinyurl.com/api-create.php?url=#{url}"
+    |> HTTPoison.get!
+    |> Map.get(:body)
   end
 
 end

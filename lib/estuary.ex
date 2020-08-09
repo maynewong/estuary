@@ -3,29 +3,42 @@ defmodule Estuary do
   Documentation for `Estuary`.
   """
   require Logger
+  use Task
 
-  def main() do
+  @time_interval Application.fetch_env!(:estuary, :time_interval)
+
+  def start_link() do
+    Task.start_link(Estuary, :run, [])
+  end
+
+  def run() do
     rss_map = Application.fetch_env!(:estuary, :rss_map)
-    for {k, v} <- rss_map do
+    for {_, v} <- rss_map do
       Logger.info "Start request rss_url: #{v[:url]}"
 
       v[:url]
-      |> HTTPoison.get!
+      |> HTTPoison.get!([], [follow_redirect: true])
       |> Map.get(:body)
-      |> Feedraptor.parse
+      |> Feedraptor.parse()
       |> parse_feed(v[:css])
 
     end
+
+    Logger.info("run before interval...")
+    Process.sleep(:timer.seconds(@time_interval))
+    Logger.info("run after interval...")
+    run()
   end
 
   def parse_feed(feed, css) do
-    time_interval = Application.fetch_env!(:estuary, :time_interval)
-    end_time = DateTime.add(DateTime.utc_now(), -time_interval)
+    end_time = DateTime.add(DateTime.utc_now(), -@time_interval)
 
     # parse feed while the updated > end time
     Enum.reduce_while(feed.entries, 0, fn entry, acc ->
       {:ok, updated, 0} = DateTime.from_iso8601(to_string(entry.updated))
-      if updated > end_time do
+      Logger.info("fetch updated: #{updated}")
+      if DateTime.compare(updated, end_time) != :lt do
+        Logger.info "Start parse_feed: #{updated}, #{end_time}"
         parse_link_by_css(entry.content, css)
         |> IO.iodata_to_binary
         |> send_message(entry.title)
@@ -52,10 +65,10 @@ defmodule Estuary do
     import Meeseeks.CSS
 
     for story <- Meeseeks.all(document, css(css_selector)) do
-      title = Meeseeks.one(story, css("a")) |> Meeseeks.text
+      element = Meeseeks.one(story, css("a"))
+      title = Meeseeks.text(element)
       if title != nil do
         url = Meeseeks.attr(element, "href") |> generate_url_shortener
-
         "- #{title}: #{url}\n"
       else
         ""

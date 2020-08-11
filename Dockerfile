@@ -1,4 +1,4 @@
-FROM elixir:1.9.4
+FROM elixir:1.10.4
 
 ARG MIX_ENV
 RUN apt-get update && apt-get install -y inotify-tools
@@ -14,7 +14,7 @@ WORKDIR "/opt/app"
 RUN mix local.hex --force && mix local.rebar --force
 
 COPY config/* config/
-COPY mix.exs ./
+COPY mix.exs mix.lock ./
 RUN HEX_HTTP_TIMEOUT=240 MIX_ENV=$MIX_ENV mix do deps.get, deps.compile
 
 COPY . ./

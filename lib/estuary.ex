@@ -20,7 +20,7 @@ defmodule Estuary do
       |> HTTPoison.get!([], [follow_redirect: true])
       |> Map.get(:body)
       |> Feedraptor.parse()
-      |> parse_feed(v[:css])
+      |> parse_feed(v[:css], v[:type])
 
     end
 
@@ -30,7 +30,7 @@ defmodule Estuary do
     run()
   end
 
-  def parse_feed(feed, css) do
+  def parse_feed(feed, css, type) do
     end_time = DateTime.add(DateTime.utc_now(), -@time_interval)
 
     # parse feed while the updated > end time
@@ -39,9 +39,19 @@ defmodule Estuary do
       Logger.info("fetch updated: #{updated}")
       if DateTime.compare(updated, end_time) != :lt do
         Logger.info "Start parse_feed: #{updated}, #{end_time}"
-        parse_link_by_css(entry.content, css)
-        |> IO.iodata_to_binary
-        |> send_message(entry.title)
+        if type == 'direct' do
+          parse_link_by_css(entry.content, css, type)
+          |> IO.iodata_to_binary
+          |> send_message(entry.title)
+        else if type == "request" do
+          entry.link
+          |> HTTPoison.get!([], [follow_redirect: true])
+          |> Map.get(:body)
+          |> parse_link_by_css(css, type)
+          |> IO.iodata_to_binary
+          |> send_message(entry.title)
+          
+        end
         {:cont, acc}
       else
         {:halt, acc}
@@ -61,12 +71,16 @@ defmodule Estuary do
   end
 
 
-  def parse_link_by_css(document, css_selector) do
+  def parse_link_by_css(document, css_selector, type) do
     import Meeseeks.CSS
 
     for story <- Meeseeks.all(document, css(css_selector)) do
       element = Meeseeks.one(story, css("a"))
-      title = Meeseeks.text(element)
+      if type == "direct" do
+        title = Meeseeks.text(element)
+      else
+        ""
+      end
       if title != nil do
         url = Meeseeks.attr(element, "href") |> generate_url_shortener
         "- #{title}: #{url}\n"

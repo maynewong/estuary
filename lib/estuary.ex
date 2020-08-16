@@ -26,7 +26,8 @@ defmodule Estuary do
         |> parse_feed(v[:css], v[:type])
       rescue
         e in HTTPoison.Error -> Logger.info "Request Error: #{e.reason}, #{rss_name}"
-        Protocol.UndefinedError -> Logger.info "Protocol.UndefinedError, #{rss_name}"
+        e in Protocol.UndefinedError -> Logger.info "#{Exception.message(e)}, #{rss_name}"
+        e in RuntimeError -> Logger.info "#{Exception.message(e)}, #{rss_name}"
       end
     end
 
@@ -44,7 +45,7 @@ defmodule Estuary do
       updated = entry.updated || entry.published
 
       Logger.info("fetch updated: #{updated}")
-      if Timex.Comparable.compare(updated, end_time) != :lt do
+      if Timex.Comparable.compare(updated, end_time) != -1 do
         Logger.info "Start parse_feed: #{updated}, #{end_time}"
         cond do
           type == 'direct' ->
@@ -70,14 +71,12 @@ defmodule Estuary do
     Logger.info "Start send message to slackbot: #{title}, #{message}"
     json = %{text: "#{title} \n" <> message} |> Poison.encode!
 
-    Logger.info "End send message, #{@slack_webhooks}, #{json}"
+    Logger.info "End send message,  #{json}"
     HTTPoison.post(
       @slack_webhooks,
       json,
       [{"Content-Type", "application/json"}]
     )
-
-    Logger.info "Finish send message"
   end
 
 

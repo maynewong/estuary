@@ -26,7 +26,8 @@ defmodule Estuary.MixProject do
       {:httpoison, "~> 1.6"},
       {:feedraptor, "~> 0.3.0"},
       {:meeseeks, "~> 0.15.1"},
-      {:poison, "~> 3.1"}
+      {:poison, "~> 3.1"},
+      {:timex, "~> 3.5"}
     ]
   end
 end

@@ -25,9 +25,9 @@ defmodule Estuary do
         |> Feedraptor.parse()
         |> parse_feed(v[:css], v[:type])
       rescue
-        e in HTTPoison.Error -> Logger.info "Request Error: #{e.reason}, #{rss_name}"
-        e in Protocol.UndefinedError -> Logger.info "#{Exception.message(e)}, #{rss_name}"
-        e in RuntimeError -> Logger.info "#{Exception.message(e)}, #{rss_name}"
+        e in HTTPoison.Error -> Logger.info "Request Error: #{Exception.message(e)}, #{rss_name}"
+        e in Protocol.UndefinedError -> Logger.info "Protocol.UndefinedError: #{Exception.message(e)}, #{rss_name}"
+        e in RuntimeError -> Logger.info "RuntimeError: #{Exception.message(e)}, #{rss_name}"
       end
     end
 

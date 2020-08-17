@@ -1,1 +1,1 @@
-elixir --sname app --cookie $ERLANG_COOKIE -S mix run -e "Estuary.start_link()" --no-halt 
+elixir --sname app -S mix run -e "Estuary.start_link()" --no-halt 

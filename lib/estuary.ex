@@ -49,7 +49,8 @@ defmodule Estuary do
         Logger.info "Start parse_feed: #{updated}, #{end_time}"
         cond do
           type == 'direct' ->
-            parse_link_by_css(entry.content, css, type)
+            content = entry.content || entry.description
+            parse_link_by_css(content, css, type)
             |> IO.iodata_to_binary
             |> send_message(entry.title)
           true ->

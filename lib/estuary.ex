@@ -28,6 +28,7 @@ defmodule Estuary do
         e in HTTPoison.Error -> Logger.info "Request Error: #{Exception.message(e)}, #{rss_name}"
         e in Protocol.UndefinedError -> Logger.info "Protocol.UndefinedError: #{Exception.message(e)}, #{rss_name}"
         e in RuntimeError -> Logger.info "RuntimeError: #{Exception.message(e)}, #{rss_name}"
+        # e in CaseClauseError -> Logger.info "CaseClauseError: #{Exception.message(e)}, #{rss_name}"
       end
     end
 
@@ -43,10 +44,11 @@ defmodule Estuary do
     # parse feed while the updated > end time
     Enum.reduce_while(feed.entries, 0, fn entry, acc ->
       updated = entry.updated || entry.published
+      update_time = parse_datetime(updated)
 
-      Logger.info("fetch updated: #{updated}")
-      if Timex.Comparable.compare(updated, end_time) != -1 do
-        Logger.info "Start parse_feed: #{updated}, #{end_time}"
+      Logger.info("fetch updated: #{update_time}")
+      if Timex.Comparable.compare(update_time, end_time) != -1 do
+        Logger.info "Start parse_feed: #{update_time}, #{end_time}"
         cond do
           type == 'direct' ->
             content = entry.content || entry.description
@@ -115,6 +117,18 @@ defmodule Estuary do
     |> Map.get(:body)
     |> Meeseeks.one(css("head > title"))
     |> Meeseeks.text
+  end
+
+  def parse_datetime(value) do
+    if is_binary(value) do
+      case Timex.parse(value, "{D} {Mshort} {YYYY}")
+        {:ok, datetime} ->
+          datetime
+        {:error, _} ->
+          value
+    else
+      value
+    end
   end
 
 end

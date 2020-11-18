@@ -28,7 +28,7 @@ defmodule Estuary do
         e in HTTPoison.Error -> Logger.info "Request Error: #{Exception.message(e)}, #{rss_name}"
         e in Protocol.UndefinedError -> Logger.info "Protocol.UndefinedError: #{Exception.message(e)}, #{rss_name}"
         e in RuntimeError -> Logger.info "RuntimeError: #{Exception.message(e)}, #{rss_name}"
-        # e in CaseClauseError -> Logger.info "CaseClauseError: #{Exception.message(e)}, #{rss_name}"
+        e in KeyError -> Logger.info "KeyError: #{Exception.message(e)}, #{rss_name}"
       end
     end
 
@@ -121,11 +121,12 @@ defmodule Estuary do
 
   def parse_datetime(value) do
     if is_binary(value) do
-      case Timex.parse(value, "{D} {Mshort} {YYYY}")
+      case Timex.parse(value, "{D} {Mshort} {YYYY}") do
         {:ok, datetime} ->
           datetime
         {:error, _} ->
           value
+      end
     else
       value
     end
